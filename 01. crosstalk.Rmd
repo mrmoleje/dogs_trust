@@ -1,0 +1,226 @@
+---
+title: "Dog Rehoming in the United Kingdom: 2018"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+    theme: cerulean
+---
+
+```{r setup, include=FALSE}
+
+# Sue Wallace
+# Contact suzmwallace@gmail.com
+# 27.09.2018
+# data: Dogs Trust as at 28.09.2018
+# Using cross talk, dt to create an interactive dashbaord on dog rehoming
+# Please quality assure before use - this is very rough
+
+# Note that I have used 'the'Kennel Club' to group the data. this could be 
+# changed to 'Animal breed' more more indepth analysis. 
+
+
+# Load libraries----
+
+library(readxl)
+library(dplyr)
+library(tidyverse)
+library(leaflet)
+library(RColorBrewer)
+library(ggplot2)
+library(crosstalk)
+library(plotly)
+
+
+# Load data----
+# Read in dogs trust data and take out the row with no location data
+
+rehoming <- read_excel("Data/Dogs Trust Rehoming Data.xlsx") 
+
+# Postcode lookups - this is the lat and lon of the centres. I just looked the
+# lat and long in degrees online and saved copied them into an excel file.
+# there's probably a faster way to do this using a join!
+
+centre_loc <- read_excel("Data/centre_latlon.xlsx")
+
+# Wrangle
+
+# De-duplicate the data. Some dogs have visited more than once, so this takes 
+# the dog's last visit.
+
+dog_dedupe <- rehoming %>%
+  group_by(Animal_Code, Visit_Number) %>%
+  filter(row_number()==n()) %>%
+  ungroup()
+
+# Join the postcode lat long data for the centres map
+
+rehoming_plus <- dplyr::left_join(
+  x = dog_dedupe,  # to this table...
+  y = centre_loc,   # ...join this table
+  by = "Rehoming_Centre"  # on this key
+) 
+
+# number of days to rehome - creating a new variable that shows how many
+# days it took to rehome each dog. 
+
+rehoming_plus$diff_in_days <- difftime(rehoming_plus$Visit_Date_Out,
+                                       rehoming_plus$Visit_Date_In, units = c("days"))
+
+# what about average number of days to rehome per centre. Then a filter
+# for each breed using crosstalk
+
+
+# Create a year column using mutate
+
+rehoming_plus %>% 
+  mutate(Year = format(as.Date(rehoming_plus$Visit_Date_In, 
+                               format="%d/%m/%Y"),"%Y")) -> rehoming_plus
+
+# Reshape data to calculate the mean number of days that it takes a breed 
+# to get adopted grouped by centre. Filter on the year 2018. 
+
+# Note - there may be outliers in the data that skew
+
+rehoming_plus %>%
+  filter(Year == "2018") %>% 
+  na.omit(Kennel_Club_Group, Rehoming_Centre) %>% 
+  group_by(Rehoming_Centre, Kennel_Club_Group) %>% 
+  summarise(round(mean(diff_in_days))) %>% 
+  rename(Mean= "round(mean(diff_in_days))", 
+         Breed = Kennel_Club_Group, Centre = Rehoming_Centre) -> days_to_adopt
+
+
+# Wrap data frame in SharedData (this makes the chart react to the filters)
+
+sd <- SharedData$new(days_to_adopt)
+
+
+
+# Breed avg chart using plotly
+
+plot_ly(data = sd,
+             x = ~Breed,
+             y = ~Mean,
+        color = ~Breed,
+             type = "bar"
+) -> chart
+
+
+# Groups for analysis
+
+rehoming_plus %>%
+  na.omit() %>% 
+  group_by(Rehoming_Centre, lat, lon) %>% 
+  summarise(count=n()) -> centres
+
+# colour palette will need to match number of centres so I have 'ramped'
+# the colour pallete
+
+colourCount = length(unique(centres$Rehoming_Centre))
+getPalette = colorRampPalette(brewer.pal(9, "Spectral"))
+
+pal <- colorFactor(
+  palette = getPalette(colourCount),
+  domain = centres$Rehoming_Centre
+)
+
+# Leaflet map that will indictae where each centre is. 
+
+leaflet(data = centres) %>%
+  addTiles() %>%
+  addCircleMarkers(lng = ~lon, lat = ~lat, weight = 3, 
+                   color = ~pal(Rehoming_Centre),
+                   stroke = TRUE, fillOpacity = 0.5, 
+                   radius = ~ifelse(count >= 1, 6, 10), # could say here if count >1000 then radius x, if count <1000
+                   popup = ~paste0("<h5>", Rehoming_Centre, "</h5>")) %>%
+  addLegend("bottomleft", pal = pal, values = ~Rehoming_Centre,
+            title = "Rehoming Centre",
+            #labFormat = labelFormat(prefix = "$"),
+            opacity = 2
+  ) -> map
+
+
+# DT: Using DT to create interactive tables----
+
+# select the variables that I can't to include in the table 
+
+rehoming_plus %>%
+  filter(Year =="2018") %>% 
+  dplyr::select (Animal_Name, Visit_Reason, Rehoming_Centre,
+                 Animal_Breed, Animal_Sex, diff_in_days) -> rehoming_table
+
+
+DT::datatable(
+  filter = "top",
+  head(rehoming_table, 3000), 
+  options = list(
+  columnDefs = list(list(className = 'dt-center', targets = c(2:5))),
+  pageLength = 100,
+  lengthMenu = c(100, 250, 500, 1000),
+  initComplete = JS(
+    "function(settings, json) {",
+    "$(this.api().table().header()).css({'background-color': '#FFFFE0', 'color': '#000'});",
+    "}"),
+  (searchHighlight = TRUE)
+)) -> data_table
+
+
+
+
+```
+Overview
+===================================== 
+
+Column {data-width=550}
+-----------------------------------------------------------------------
+
+### Map Dogs Trust centres in the UK
+
+```{r map}
+map
+```
+
+
+Column {data-width=450}
+-----------------------------------------------------------------------
+
+### Filters
+
+```{r filters}
+
+filter_select(
+  id = "Centre",
+  label = "Centre",
+  sharedData = sd,
+  group = ~Centre
+)
+
+filter_select(
+  id = "Breed",
+  label = "Breed",
+  sharedData = sd,
+  group = ~Breed
+)
+
+
+```
+
+### Average number of days to adopt: 2018
+
+```{r fig.width=10, fig.height=6}
+
+chart
+
+```
+
+
+Data
+===================================== 
+
+### Data table
+
+```{r}
+data_table
+```
+

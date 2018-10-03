@@ -1,0 +1,23 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1538215241290.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "87B44AD4",
+    "lastKnownWriteTime" : 1538232384,
+    "last_content_update" : 1538232384539,
+    "path" : "~/Documents/R_Projects/Dogs_trust/00.Data wrangle.R",
+    "project_path" : "00.Data wrangle.R",
+    "properties" : {
+        "cursorPosition" : "106,9",
+        "scrollLine" : "0",
+        "tempName" : "Untitled1"
+    },
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

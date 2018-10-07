@@ -4,6 +4,8 @@
 
 The Markdown script can be used to create a html dashboard containing summary of which breed of dog is most likely to be rescued from which rescue centre.
 
+Plotly is used here for graphs. 
+
 [Crosstalk](https://rstudio.github.io/crosstalk/) developed by [Joe Cheng](https://twitter.com/jcheng?lang=en) extends html widgets with interactivity using sliders, radio buttons and filters. 
 
 ## Getting Started
@@ -14,7 +16,7 @@ git clone https://github.com/mrmoleje/dogs_trust
 ```
 ## Pre-requisites
 
-In order to run this you'll need R Studio installed, as well as the following libraries: dplyr, leaflet, DT, crosstalk, RColorBrewer , readr, ggplot2.
+In order to run this you'll need R Studio installed, as well as the following libraries: dplyr, leaflet, DT, crosstalk, RColorBrewer, readr, ggplot2, plotly.
 
 ## Data
 
